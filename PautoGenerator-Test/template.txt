@@ -1,0 +1,165 @@
+{
+   "BPMList" : [
+      {
+         "bpm" : bpm,//bpm由用户输入，保留一位小数
+         "startTime" : [ 0, 0, 1 ]
+      }
+   ],
+   "META" : {
+      "RPEVersion" : 160,
+      "background" : "num.jpg",//num(long生成转换为string)是8位随机小数，num.jpg由用户输入的jpg文件拷贝生成
+      "charter" : "0",
+      "composer" : "0",
+      "id" : "num",
+      "level" : "0",
+      "name" : "0",
+      "offset" : 0,
+      "song" : "num.ogg"//num.ogg复制拷贝用户输入mp3文件
+   },
+   "judgeLineGroup" : [ "Default" ],
+   "judgeLineList" : [
+      {
+         "Group" : 0,
+         "Name" : "Untitled",
+         "Texture" : "line.png",
+         "alphaControl" : [
+            {
+               "alpha" : 1.0,
+               "easing" : 1,
+               "x" : 0.0
+            },
+            {
+               "alpha" : 1.0,
+               "easing" : 1,
+               "x" : 9999999.0
+            }
+         ],
+         "bpmfactor" : 1.0,
+         "eventLayers" : [
+            {
+               "alphaEvents" : [
+                  {
+                     "easingLeft" : 0.0,
+                     "easingRight" : 1.0,
+                     "easingType" : 1,
+                     "end" : 255,
+                     "endTime" : [ 1, 0, 1 ],
+                     "linkgroup" : 0,
+                     "start" : 255,
+                     "startTime" : [ 0, 0, 1 ]
+                  }
+               ],
+               "moveXEvents" : [
+                  {
+                     "easingLeft" : 0.0,
+                     "easingRight" : 1.0,
+                     "easingType" : 1,
+                     "end" : 0.0,
+                     "endTime" : [ 1, 0, 1 ],
+                     "linkgroup" : 0,
+                     "start" : 0.0,
+                     "startTime" : [ 0, 0, 1 ]
+                  }
+               ],
+               "moveYEvents" : [
+                  {
+                     "easingLeft" : 0.0,
+                     "easingRight" : 1.0,
+                     "easingType" : 1,
+                     "end" : -300.0,
+                     "endTime" : [ 1, 0, 1 ],
+                     "linkgroup" : 0,
+                     "start" : -300.0,
+                     "startTime" : [ 0, 0, 1 ]
+                  }
+               ],
+               "rotateEvents" : [
+                  {
+                     "easingLeft" : 0.0,
+                     "easingRight" : 1.0,
+                     "easingType" : 1,
+                     "end" : 0.0,
+                     "endTime" : [ 1, 0, 1 ],
+                     "linkgroup" : 0,
+                     "start" : 0.0,
+                     "startTime" : [ 0, 0, 1 ]
+                  }
+               ],
+               "speedEvents" : [
+               ]
+            }
+         ],
+         "extended" : {
+            "inclineEvents" : [
+               {
+                  "easingLeft" : 0.0,
+                  "easingRight" : 1.0,
+                  "easingType" : 0,
+                  "end" : 0.0,
+                  "endTime" : [ 1, 0, 1 ],
+                  "linkgroup" : 0,
+                  "start" : 0.0,
+                  "startTime" : [ 0, 0, 1 ]
+               }
+            ]
+         },
+         "father" : -1,
+         "isCover" : 1,
+		   "notes" : [
+
+
+
+         ],//只在note中生成
+         "numOfNotes" : 0,//统计note中生成数量
+         "posControl" : [
+            {
+               "easing" : 1,
+               "pos" : 1.0,
+               "x" : 0.0
+            },
+            {
+               "easing" : 1,
+               "pos" : 1.0,
+               "x" : 9999999.0
+            }
+         ],
+         "sizeControl" : [
+            {
+               "easing" : 1,
+               "size" : 1.0,
+               "x" : 0.0
+            },
+            {
+               "easing" : 1,
+               "size" : 1.0,
+               "x" : 9999999.0
+            }
+         ],
+         "skewControl" : [
+            {
+               "easing" : 1,
+               "skew" : 0.0,
+               "x" : 0.0
+            },
+            {
+               "easing" : 1,
+               "skew" : 0.0,
+               "x" : 9999999.0
+            }
+         ],
+         "yControl" : [
+            {
+               "easing" : 1,
+               "x" : 0.0,
+               "y" : 1.0
+            },
+            {
+               "easing" : 1,
+               "x" : 9999999.0,
+               "y" : 1.0
+            }
+         ],
+         "zOrder" : 0
+      }
+   ]
+}

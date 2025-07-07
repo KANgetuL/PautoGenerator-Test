@@ -1,0 +1,45 @@
+##以下是对于RPE谱面根目录的说明：
+
+#BPMList
+    BPMList是JsonArray，包含若干JsonObject
+    每个JsonObject包含[
+        bpm         (float)
+        startTime   (beat)      //beat单位详见phira documents
+    ]
+
+#META
+    META是JsonObject，包含[
+        RPEVersion      (int):      160
+        background      (string)    num.jpg
+        charter         (string)    0
+        composer        (string)    0
+        id              (string)    num
+        illustration    (string)    0
+        level           (string)    0
+        name            (string)    0
+        offset          (int)       0
+        song            (string)    num.ogg
+    ]
+
+#judgeLineGroup
+
+#judgeLineList
+    judgeLineList是一个JsonArray，包含若干JsonObject
+    每个JsonObject(即一根判定线)包含[
+        Group               0
+        Name                Untitled
+        Texture             line.png
+        alphaControl        Default
+        bpmfactor           Default
+        eventLayers         Default
+        extended            Default
+        father              -1
+        isCover             1
+        notes               [Generate]
+        numOfNotes          [numOfNotes]
+        posControl          Default
+        sizeControl         Default
+        skewControl         Default
+        yControl            Default
+        zOrder              Default
+    ]
