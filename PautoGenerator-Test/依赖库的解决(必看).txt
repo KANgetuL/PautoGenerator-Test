@@ -1,0 +1,22 @@
+依赖库：
+libsndfile
+FFTW3
+
+1.确保安装有Git和Cmake，如果没有请自行安装
+
+2.克隆vcpkg
+	cmd  :  git clone https://github.com/microsoft/vcpkg.git
+
+3.生成vcpkg的可执行文件
+	cmd  :  cd vcpkg 
+		     .\bootstrap-vcpkg.bat
+
+4.安装libsndfile库(这一步大约11分钟)
+	cmd  :  cd vcpkg
+                     .\vcpkg install libsndfile
+
+5.集成vcpkg
+	cmd  :  cd vcpkg
+                     .\vcpkg integrate install
+
+6.FFTW3库同理，只有第四步和第五步

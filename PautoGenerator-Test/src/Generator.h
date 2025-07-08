@@ -4,7 +4,11 @@
 #pragma once
 
 #include <iostream>
+#include <string>
+#include <vector>
 #include "include/json.hpp"
+#include <nlohmann/json.hpp>
+#include "AudioProcessor.h"
 
 using namespace std;
 
@@ -19,6 +23,7 @@ public:
     //第一步，随机生成8位num，拷贝jpg，转码ogg，输出json
     //成功返回true
     bool processStep1();
+    bool processStep2();
 
     std::string getJsonName() const { return outJson_; }
     std::string getJpgName() const { return outJpg_; }
@@ -27,13 +32,13 @@ public:
 
 private:
     float bpm_;
-    string bgPath_,mp3Path_;
-    string id_;
-    string outJpg_,outOgg_,outJson_;
+    std::string bgPath_,mp3Path_;
+    std::string id_;
+    std::string outJpg_,outOgg_,outJson_;
 
 
     //8位num生成
-    string generateId();
+    std::string generateId();
 
     //bgPath_ -> id_.jpg
     bool copyBackground();
@@ -44,7 +49,10 @@ private:
     //template -> 目标json
     bool buildAndWriteJson();
 
+    bool generateNotes();
 
+    nlohmann::json loadJson() const;
+    void saveJson(const nlohmann::json& j) const;
 };
 
 // TODO: 在此处引用程序需要的其他标头。

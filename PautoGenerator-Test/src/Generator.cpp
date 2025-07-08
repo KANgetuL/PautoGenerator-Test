@@ -5,6 +5,8 @@
 #include<cstdlib>
 #include<filesystem>
 #include<iostream>
+#include<algorithm>
+#include<set>
 
 using json=nlohmann::json;
 namespace fs=std::filesystem;
@@ -154,6 +156,101 @@ bool Generator::buildAndWriteJson() {
     return true;
 }
 
+json Generator::loadJson() const {
+    std::ifstream ifs(outJson_);
+    if (!ifs) throw std::runtime_error("Failed to open JSON file");
+    return json::parse(ifs);
+}
+
+void Generator::saveJson(const json& j) const {
+    std::ofstream ofs(outJson_);
+    if (!ofs) throw std::runtime_error("Failed to save JSON file");
+    ofs << j.dump(4);
+}
+
+
+bool Generator::generateNotes() {
+    try {
+        // 1. 加载音频
+        auto audio = AudioProcessor::LoadOgg(outOgg_);
+
+        // 2. 检测节拍
+        auto beats = AudioProcessor::DetectBeats(audio, bpm_);
+
+        // 3. 转换为beat值
+        std::vector<float> beatValues;
+        for (float time : beats) {
+            beatValues.push_back(BeatCalculator::TimeToBeat(time, bpm_));
+        }
+
+        // 4. 加载JSON
+        json j = loadJson();
+        json& judgeLine = j["judgeLineList"][0];
+        json& notes = judgeLine["notes"];
+
+        // 5. 生成音符
+        const std::vector<float> positions = { 390.0f, 130.0f, -130.0f, -390.0f };
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<int> dist(0, 3);
+
+        // 跟踪每个节拍上已使用的位置
+        std::map<float, std::set<float>> beatPositions;
+
+        for (float beat : beatValues) {
+            // 确定可用的位置
+            std::vector<float> availablePos = positions;
+            if (beatPositions.find(beat) != beatPositions.end()) {
+                auto used = beatPositions[beat];
+                availablePos.erase(
+                    std::remove_if(availablePos.begin(), availablePos.end(),
+                        [&](float pos) { return used.find(pos) != used.end(); }),
+                    availablePos.end()
+                );
+            }
+
+            if (availablePos.empty()) continue;
+
+            // 随机选择位置
+            int index = dist(rng) % availablePos.size();
+            float pos = availablePos[index];
+
+            // 添加到已使用位置
+            beatPositions[beat].insert(pos);
+
+            // 转换为三元组
+            auto triplet = BeatCalculator::BeatToTriplet(beat);
+
+            // 创建音符
+            json note = {
+                {"above", 1},
+                {"alpha", 255},
+                {"endTime", triplet},
+                {"isFake", 0},
+                {"positionX", pos},
+                {"size", 1.0},
+                {"speed", 1.0},
+                {"startTime", triplet},
+                {"type", 1},
+                {"visibleTime", 999999.0},
+                {"yOffset", 0.0}
+            };
+
+            notes.push_back(note);
+        }
+
+        // 6. 更新音符数量
+        judgeLine["numOfNotes"] = notes.size();
+
+        // 7. 保存JSON
+        saveJson(j);
+        return true;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Note generation failed: " << e.what() << '\n';
+        return false;
+    }
+}
+
 
 bool Generator::processStep1() {
     if (!copyBackground()) {
@@ -169,4 +266,8 @@ bool Generator::processStep1() {
         return false;
     }
     return true;
+}
+
+bool Generator::processStep2() {
+    return generateNotes();
 }

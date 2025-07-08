@@ -1,0 +1,23 @@
+"notes" 格式
+每一个note均为以下格式
+            {
+               "above" : 1,
+               "alpha" : 255,
+               "endTime" : [ 18, 3, 6 ],
+               "isFake" : 0,
+               "positionX" : 390.0,
+               "size" : 1.0,
+               "speed" : 1.0,
+               "startTime" : [ 18, 3, 6 ],
+               "type" : 1,
+               "visibleTime" : 999999.0,
+               "yOffset" : 0.0
+            },
+其中只有starttime，endtime和positionX需要更改，且starttime=endtime
+"starttime":[18, 3, 6]表示音符所在时间为   18:3/6 beats = 18.5beats
+
+"positionX":390意思note生成在+390上
+为了确保谱面整洁，note只能生成在+390，-390，+130，-130上
+即positionX的可能取值为{390,130,-130,-390}
+
+注意同一时间可以有多个note内但最多只有3个note，同时间段note之间"positionX"不得相同
