@@ -1,39 +1,35 @@
 #include "Generator.h"
-#include<fstream>
-#include<random>
-#include<iomanip>
-#include<cstdlib>
-#include<filesystem>
-#include<iostream>
-#include<algorithm>
-#include<set>
+#include <fstream>
+#include <random>
+#include <iomanip>
+#include <cstdlib>
+#include <filesystem>
+#include <iostream>
+#include <algorithm>
+#include <set>
+#include <map>
 
-using json=nlohmann::json;
-namespace fs=std::filesystem;
+using json = nlohmann::json;
+namespace fs = std::filesystem;
 
 Generator::Generator(float bpm, const std::string& bgPath, const std::string& mp3Path)
-	:bpm_(std::round(bpm * 10.0f) / 10.0f),
-	bgPath_(bgPath),
-	mp3Path_(mp3Path) {
-	id_ = generateId();
-	outJpg_ = id_ + ".jpg";
-	outOgg_ = id_ + ".ogg";
-	outJson_ = id_ + ".json";
-
+    : bpm_(std::round(bpm * 10.0f) / 10.0f),
+    bgPath_(bgPath),
+    mp3Path_(mp3Path) {
+    id_ = generateId();
+    outJpg_ = id_ + ".jpg";
+    outOgg_ = id_ + ".ogg";
+    outJson_ = id_ + ".json";
 }
 
 std::string Generator::generateId() {
-	std::mt19937_64 rng{
-		std::random_device{}()
-	};
-	std::uniform_int_distribution<uint64_t>dist(10000000, 99999999);
-
-	return std::to_string(dist(rng));
+    std::mt19937_64 rng{ std::random_device{}() };
+    std::uniform_int_distribution<uint64_t> dist(10000000, 99999999);
+    return std::to_string(dist(rng));
 }
 
 bool Generator::copyBackground() {
     try {
-        //lky修正：使用 fs::copy_options::overwrite_existing
         fs::copy_file(bgPath_, outJpg_, fs::copy_options::overwrite_existing);
         return true;
     }
@@ -44,19 +40,13 @@ bool Generator::copyBackground() {
 }
 
 bool Generator::convertSong() {
-	// 依赖本地已安装 ffmpeg
     std::string cmd = "ffmpeg -y -i \"" + mp3Path_ + "\" \"" + outOgg_ + "\"";
-	return std::system(cmd.c_str()) == 0;
+    return std::system(cmd.c_str()) == 0;
 }
 
 bool Generator::buildAndWriteJson() {
     json j;
-    j["BPMList"] = json::array({
-        {
-            {"bpm", bpm_},
-            {"startTime", {0,0,1}}
-        }
-        });
+    j["BPMList"] = json::array();
     j["META"] = {
         {"RPEVersion", 160},
         {"background", outJpg_},
@@ -70,8 +60,6 @@ bool Generator::buildAndWriteJson() {
     };
 
     j["judgeLineGroup"] = { "Default" };
-    // 这里只用空 notes 数组，后面第二步再填
-    // 完整的judgeLine结构
     json judgeLine = {
         {"Group", 0},
         {"Name", "Untitled"},
@@ -148,39 +136,43 @@ bool Generator::buildAndWriteJson() {
 
     j["judgeLineList"] = json::array({ judgeLine });
 
-
-    // 写到文件
     std::ofstream ofs(outJson_);
-    if (!ofs) return false;
+    if (!ofs) {
+        std::cerr << "Failed to open JSON file for writing: " << outJson_ << '\n';
+        return false;
+    }
     ofs << j.dump(4);
     return true;
 }
 
 json Generator::loadJson() const {
     std::ifstream ifs(outJson_);
-    if (!ifs) throw std::runtime_error("Failed to open JSON file");
+    if (!ifs) {
+        throw std::runtime_error("Failed to open JSON file: " + outJson_);
+    }
     return json::parse(ifs);
 }
 
 void Generator::saveJson(const json& j) const {
     std::ofstream ofs(outJson_);
-    if (!ofs) throw std::runtime_error("Failed to save JSON file");
+    if (!ofs) {
+        throw std::runtime_error("Failed to save JSON file: " + outJson_);
+    }
     ofs << j.dump(4);
 }
-
 
 bool Generator::generateNotes() {
     try {
         // 1. 加载音频
         auto audio = AudioProcessor::LoadOgg(outOgg_);
 
-        // 2. 检测节拍
-        auto beats = AudioProcessor::DetectBeats(audio, bpm_);
+        // 2. 检测BPM变化（使用15秒窗口，5秒步长）
+        auto bpmChanges = AudioProcessor::DetectBPMChanges(audio, 15.0f, 5.0f);
 
-        // 3. 转换为beat值
-        std::vector<float> beatValues;
-        for (float time : beats) {
-            beatValues.push_back(BeatCalculator::TimeToBeat(time, bpm_));
+        // 3. 检测节拍点
+        auto beats = AudioProcessor::DetectBeats(audio);
+        if (beats.empty()) {
+            throw std::runtime_error("No beats detected in the audio");
         }
 
         // 4. 加载JSON
@@ -188,19 +180,60 @@ bool Generator::generateNotes() {
         json& judgeLine = j["judgeLineList"][0];
         json& notes = judgeLine["notes"];
 
-        // 5. 生成音符
+        // 5. 更新BPMList
+        json& bpmList = j["BPMList"];
+        bpmList = json::array();
+
+        // 添加初始BPM（0时刻）
+        bpmList.push_back({
+            {"bpm", bpmChanges[0].second},
+            {"startTime", BeatCalculator::BeatToTriplet(0)}
+            });
+
+        // 添加检测到的BPM变化点
+        for (const auto& change : bpmChanges) {
+            if (change.first > 0) { // 跳过0时刻
+                float beat = BeatCalculator::TimeToBeat(change.first, change.second);
+                bpmList.push_back({
+                    {"bpm", change.second},
+                    {"startTime", BeatCalculator::BeatToTriplet(beat)}
+                    });
+            }
+        }
+
+        // 6. 生成音符（考虑BPM变化）
         const std::vector<float> positions = { 390.0f, 130.0f, -130.0f, -390.0f };
         std::mt19937 rng(std::random_device{}());
         std::uniform_int_distribution<int> dist(0, 3);
-
-        // 跟踪每个节拍上已使用的位置
         std::map<float, std::set<float>> beatPositions;
 
-        for (float beat : beatValues) {
+        // 为每个节拍点找到对应的BPM
+        std::vector<float> beatValues;
+        for (float time : beats) {
+            // 找到当前时间对应的BPM
+            float currentBPM = bpmChanges[0].second;
+            for (const auto& change : bpmChanges) {
+                if (time >= change.first) {
+                    currentBPM = change.second;
+                }
+                else {
+                    break;
+                }
+            }
+
+            // 转换时间到节拍
+            float beat = BeatCalculator::TimeToBeat(time, currentBPM);
+            beatValues.push_back(beat);
+        }
+
+        // 生成音符
+        for (size_t i = 0; i < beatValues.size(); i++) {
+            float beat = beatValues[i];
+
             // 确定可用的位置
             std::vector<float> availablePos = positions;
             if (beatPositions.find(beat) != beatPositions.end()) {
-                auto used = beatPositions[beat];
+                auto& used = beatPositions[beat];
                 availablePos.erase(
                     std::remove_if(availablePos.begin(), availablePos.end(),
                         [&](float pos) { return used.find(pos) != used.end(); }),
@@ -238,10 +271,10 @@ bool Generator::generateNotes() {
             notes.push_back(note);
         }
 
-        // 6. 更新音符数量
+        // 7. 更新音符数量
         judgeLine["numOfNotes"] = notes.size();
 
-        // 7. 保存JSON
+        // 8. 保存JSON
         saveJson(j);
         return true;
     }
@@ -250,7 +283,6 @@ bool Generator::generateNotes() {
         return false;
     }
 }
-
 
 bool Generator::processStep1() {
     if (!copyBackground()) {

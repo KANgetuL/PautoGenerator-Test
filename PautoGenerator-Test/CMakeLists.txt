@@ -27,7 +27,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 使用 find_package 查找依赖
 find_package(SndFile REQUIRED)
 find_package(FFTW3 REQUIRED)
-find_package(FFTW3f REQUIRED)
 find_package(nlohmann_json 3.12.0 REQUIRED)
 
 # 源文件
@@ -54,7 +53,6 @@ target_include_directories(PautoGenerator-Test PRIVATE
 target_link_libraries(PautoGenerator-Test PRIVATE
     SndFile::sndfile  # 使用 IMPORTED 目标
     FFTW3::fftw3      # 使用 IMPORTED 目标
-    FFTW3f:fftw3f
     nlohmann_json::nlohmann_json
 )
 
@@ -73,7 +71,6 @@ if(WIN32)
     target_link_libraries(PautoGenerator-Test PRIVATE
         ${SndFile_LIBRARIES}
         ${FFTW3_LIBRARIES}
-        fftw3f.lib
     )
 endif()
 

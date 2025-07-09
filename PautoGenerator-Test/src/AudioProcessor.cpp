@@ -11,31 +11,34 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// 辅助函数：FFT计算
+// 辅助函数：双精度 FFT 计算
 std::vector<float> ComputeFFT(const std::vector<float>& input) {
     int n = input.size();
-    fftwf_complex* out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (n / 2 + 1));
-    float* in = (float*)fftwf_malloc(sizeof(float) * n);
+    double* in = (double*)fftw_malloc(sizeof(double) * n);
+    fftw_complex* out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * (n / 2 + 1));
+    fftw_plan plan = fftw_plan_dft_r2c_1d(n, in, out, FFTW_ESTIMATE);
 
-    fftwf_plan plan = fftwf_plan_dft_r2c_1d(n, in, out, FFTW_ESTIMATE);
+    for (int i = 0; i < n; i++) {
+        in[i] = static_cast<double>(input[i]);
+    }
 
-    std::copy(input.begin(), input.end(), in);
-    fftwf_execute(plan);
+    fftw_execute(plan);
 
     std::vector<float> spectrum(n / 2 + 1);
     for (int i = 0; i < n / 2 + 1; i++) {
-        spectrum[i] = std::sqrt(out[i][0] * out[i][0] + out[i][1] * out[i][1]);
+        spectrum[i] = static_cast<float>(std::sqrt(out[i][0] * out[i][0] + out[i][1] * out[i][1]));
     }
 
-    fftwf_destroy_plan(plan);
-    fftwf_free(in);
-    fftwf_free(out);
+    fftw_destroy_plan(plan);
+    fftw_free(in);
+    fftw_free(out);
 
     return spectrum;
 }
 
 AudioProcessor::AudioData AudioProcessor::LoadOgg(const std::string& filename) {
     SF_INFO sfInfo;
+    std::memset(&sfInfo, 0, sizeof(SF_INFO));
     SNDFILE* file = sf_open(filename.c_str(), SFM_READ, &sfInfo);
     if (!file) {
         throw std::runtime_error("Failed to open audio file: " + filename);
@@ -71,9 +74,8 @@ AudioProcessor::AudioData AudioProcessor::LoadOgg(const std::string& filename) {
     return data;
 }
 
-std::vector<float> AudioProcessor::DetectBeats(const AudioData& audio, float bpm) {
+std::vector<float> AudioProcessor::DetectBeats(const AudioData& audio) {
     std::vector<float> beats;
-    const float beatInterval = 60.0f / bpm; // 节拍间隔（秒）
     const int windowSize = 2048; // FFT窗口大小
     const int hopSize = 512;    // 帧移
 
@@ -94,15 +96,85 @@ std::vector<float> AudioProcessor::DetectBeats(const AudioData& audio, float bpm
     }
 
     // 检测峰值（能量突变点）
-    const float threshold = 0.2f * (*std::max_element(energyDiff.begin(), energyDiff.end()));
+    if (energyDiff.empty()) return beats;
+
+    const float maxDiff = *std::max_element(energyDiff.begin(), energyDiff.end());
+    if (maxDiff <= 0.0f) return beats;  // 防止除以零
+
+    const float threshold = 0.2f * maxDiff;
+
     for (size_t i = 1; i < energyDiff.size() - 1; i++) {
-        if (energyDiff[i] > threshold && energyDiff[i] > energyDiff[i - 1] && energyDiff[i] > energyDiff[i + 1]) {
+        if (energyDiff[i] > threshold &&
+            energyDiff[i] > energyDiff[i - 1] &&
+            energyDiff[i] > energyDiff[i + 1]) {
             float time = static_cast<float>(i * hopSize) / audio.sampleRate;
             beats.push_back(time);
         }
     }
 
     return beats;
+}
+
+std::vector<std::pair<float, float>> AudioProcessor::DetectBPMChanges(
+    const AudioData& audio,
+    float windowSize,
+    float step)
+{
+    auto beats = DetectBeats(audio);
+    std::vector<std::pair<float, float>> bpmChanges;
+
+    if (beats.size() < 2) {
+        // 没有足够的节拍点，使用单个节拍间隔估计BPM
+        if (!beats.empty()) {
+            float avgInterval = beats.back() / (beats.size() - 1);
+            bpmChanges.push_back({ 0.0f, 60.0f / avgInterval });
+        }
+        return bpmChanges;
+    }
+
+    // 按时间窗口检测BPM
+    const float totalDuration = static_cast<float>(audio.samples.size()) / audio.sampleRate;
+    const int numWindows = static_cast<int>((totalDuration - windowSize) / step) + 1;
+
+    for (int i = 0; i < numWindows; i++) {
+        const float windowStart = i * step;
+        const float windowEnd = windowStart + windowSize;
+
+        // 收集窗口内的节拍间隔
+        std::vector<float> intervals;
+        float lastBeatInWindow = -1.0f;
+
+        for (size_t j = 0; j < beats.size(); j++) {
+            if (beats[j] >= windowStart && beats[j] <= windowEnd) {
+                if (lastBeatInWindow >= 0) {
+                    intervals.push_back(beats[j] - lastBeatInWindow);
+                }
+                lastBeatInWindow = beats[j];
+            }
+        }
+
+        if (intervals.size() >= 3) {
+            // 计算中位数间隔，避免异常值影响
+            std::sort(intervals.begin(), intervals.end());
+            float medianInterval = intervals[intervals.size() / 2];
+            float bpm = 60.0f / medianInterval;
+
+            // 记录窗口中心时间和BPM
+            bpmChanges.push_back({ windowStart + windowSize / 2.0f, bpm });
+        }
+    }
+
+    // 如果没有检测到变化，使用全局BPM
+    if (bpmChanges.empty()) {
+        float avgInterval = 0.0f;
+        for (size_t i = 1; i < beats.size(); i++) {
+            avgInterval += beats[i] - beats[i - 1];
+        }
+        avgInterval /= (beats.size() - 1);
+        bpmChanges.push_back({ 0.0f, 60.0f / avgInterval });
+    }
+
+    return bpmChanges;
 }
 
 std::vector<std::vector<float>> AudioProcessor::GenerateSpectrogram(const AudioData& audio, int windowSize, int hopSize) {

@@ -1,7 +1,7 @@
 {
    "BPMList" : [
       {
-         "bpm" : bpm,//bpm由用户输入，保留一位小数
+         "bpm" : bpm1,//bpm1由用户输入，保留一位小数，与项目测定bpm比较，作为参考
          "startTime" : [ 0, 0, 1 ]
       }
    ],

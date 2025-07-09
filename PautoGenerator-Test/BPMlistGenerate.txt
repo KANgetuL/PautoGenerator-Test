@@ -1,0 +1,19 @@
+"BPMList" : [
+      {
+         "bpm" : bpm1,//bpm1为初始bpm
+         "startTime" : [ 0, 0, 1 ]
+      }
+      {
+         "bpm" : bpm2,//如果bpm变化，则记录变化
+         "startTime" : [ , , ]//记录变化开始beat，此beat一定小于上一个bpm的starttime
+      }
+   ],
+
+   以此类推，"BPMList"中可有多个bpm值，连接起来为整个歌曲
+   每个bpm包括：
+   {
+        "bpm" : t
+        "startTime" : [a , b, c]
+   }
+   多bpm值需要分段测量，单位为beat
+   [a,b,c]代表 (a+b/c) beat
